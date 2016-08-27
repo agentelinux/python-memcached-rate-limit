@@ -84,11 +84,9 @@ class RateLimit(object):
 
         :return: integer: current usage
         """
-        try:
-            current_usage = self._client.gets(key, namespace=MEMCACHE_NAMESPACE)
-        except NoScriptError:
-            current_usage = 0
-
+        current_usage = 0
+        current_usage = self._client.gets(key, namespace=MEMCACHE_NAMESPACE)
+        
         if int(current_usage) > self._max_requests:
             raise TooManyRequests()
 

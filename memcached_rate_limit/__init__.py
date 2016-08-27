@@ -83,8 +83,7 @@ class RateLimit(object):
         method raises an Exception.
 
         :return: integer: current usage
-        """
-        current_usage = 0
+        """        
         current_usage = self._memcached.gets(self._rate_limit_key , namespace=MEMCACHE_NAMESPACE)
         
         if int(current_usage) > self._max_requests:

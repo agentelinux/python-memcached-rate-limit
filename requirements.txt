@@ -1,1 +1,2 @@
-redis
+memcache
+google-api-python-client

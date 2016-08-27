@@ -2,32 +2,23 @@
 #  -*- coding: utf-8 -*-
 from hashlib import sha1
 from distutils.version import StrictVersion
-from redis.exceptions import NoScriptError
-from redis import Redis, ConnectionPool
+#from redis.exceptions import NoScriptError
+#from redis import Redis, ConnectionPool
+from google.appengine.api import memcache
+
 
 __version__ = "0.0.1"
 
-# Adapted from http://redis.io/commands/incr#pattern-rate-limiter-2
-INCREMENT_SCRIPT = b"""
-    local current
-    current = tonumber(redis.call("incr", KEYS[1]))
-    if current == 1 then
-        redis.call("expire", KEYS[1], ARGV[1])
-    end
-    return current
-"""
-INCREMENT_SCRIPT_HASH = sha1(INCREMENT_SCRIPT).hexdigest()
-
-REDIS_POOL = ConnectionPool(host='127.0.0.1', port=6379, db=0)
+MEMCACHE_NAMESPACE='rate_limiter'
 
 
-class RedisVersionNotSupported(Exception):
-    """
-    Rate Limit depends on Redis’ commands EVALSHA and EVAL which are
-    only available since the version 2.6.0 of the database.
-    """
-    pass
 
+class MemcacheWriteError(Exception):
+    """Error thrown when memcache compare and set fails too many times."""
+    def __init__(self, value):
+        self.value = value
+    def __str__(self):
+        return repr(self.value)
 
 class TooManyRequests(Exception):
     """
@@ -55,9 +46,7 @@ class RateLimit(object):
         :param max_requests: integer (i.e. ‘10’)
         :param expire: seconds to wait before resetting counters (i.e. ‘60’)
         """
-        self._redis = Redis(connection_pool=REDIS_POOL)
-        if not self._is_rate_limit_supported():
-            raise RedisVersionNotSupported()
+        self._memcached = memcache.Client()
 
         self._rate_limit_key = "rate_limit:{0}_{1}".format(resource, client)
         self._max_requests = max_requests
@@ -76,7 +65,7 @@ class RateLimit(object):
 
         :return: integer: current usage
         """
-        return int(self._redis.get(self._rate_limit_key) or 0)
+        return int(self._memcached.get(self._rate_limit_key, namespace=MEMCACHE_NAMESPACE) or 0)
 
     def has_been_reached(self):
         """
@@ -96,11 +85,9 @@ class RateLimit(object):
         :return: integer: current usage
         """
         try:
-            current_usage = self._redis.evalsha(
-                INCREMENT_SCRIPT_HASH, 1, self._rate_limit_key, self._expire)
+            current_usage = self._client.gets(key, namespace=MEMCACHE_NAMESPACE)
         except NoScriptError:
-            current_usage = self._redis.eval(
-                INCREMENT_SCRIPT, 1, self._rate_limit_key, self._expire)
+            current_usage = 0
 
         if int(current_usage) > self._max_requests:
             raise TooManyRequests()
@@ -114,14 +101,11 @@ class RateLimit(object):
 
         :return: bool
         """
-        redis_version = self._redis.info()['redis_version']
-        is_supported = StrictVersion(redis_version) >= StrictVersion('2.6.0')
-        return bool(is_supported)
+        pass
 
     def _reset(self):
         """
         Deletes all keys that start with ‘rate_limit:’.
         """
-        for rate_limit_key in self._redis.keys('rate_limit:*'):
-            self._redis.delete(rate_limit_key)
+        self._memcached.delete_multi_async(self._rate_limit_key ,namespace=MEMCACHE_NAMESPACE)
 

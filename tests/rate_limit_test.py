@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 import unittest
 import time
-from redis_rate_limit import RateLimit, TooManyRequests
+from memcached_rate_limit import RateLimit, TooManyRequests
 
 
 class TestRedisRateLimit(unittest.TestCase):

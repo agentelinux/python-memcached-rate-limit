@@ -10,13 +10,13 @@ with open('requirements.txt') as f:
     requires = f.readlines()
 
 setup(
-    name='python-redis-rate-limit',
+    name='python-memcached-rate-limit',
     version='0.0.1',
     description=u'',
     long_description=readme,
-    author=u'Victor Torres',
-    author_email=u'vpaivatorres@gmail.com',
-    url=u'https://github.com/evoluxbr/python-redis-rate-limit',
+    author=u'Krishna Pennacchioni',
+    author_email=u'krishna@agentelinux.com.br',
+    url=u'https://github.com/agentelinux/python-memcached-rate-limit',
     license=u'MIT',
     packages=find_packages(exclude=('tests', 'docs')),
     classifiers=[
